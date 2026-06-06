@@ -47,14 +47,19 @@ async def _health_server() -> None:
 async def _startup() -> None:
     self_id = await get_self_id()
     logger.info(
-        "VK user bot ready, user_id=%s, ai=%s, ssl_verify=%s, allow_self=%s",
+        "VK user bot ready, user_id=%s, ai=%s, ai_key_len=%d, ssl_verify=%s, allow_self=%s",
         self_id,
         config.ai_enabled,
+        len(config.ai_api_key),
         config.ssl_verify,
         config.allow_self_messages,
     )
     logger.info("Команда для ответа: «%s твой вопрос» (только ты + выданный /+дов)", config.ai_prefix)
     logger.info("Меню функций: «нд» / «нд помощь»")
+    if not config.ai_enabled:
+        logger.warning(
+            "ИИ выключен: на Bothost добавь AI_API_KEY в переменные окружения и перезапусти бота"
+        )
 
 
 def _run() -> None:

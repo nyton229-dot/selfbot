@@ -179,10 +179,20 @@ async def message_handler(message: Message) -> None:
         has_media = has_recognizable_media(message)
 
         if not ai_query and not has_media:
-
+            if is_owner:
+                await relay(
+                    message,
+                    f"Напиши вопрос после «{PREFIX}», например: {PREFIX} привет",
+                )
             return
 
-
+        if not config.ai_enabled:
+            if is_owner:
+                await relay(
+                    message,
+                    "ИИ выключен: на Bothost добавь AI_API_KEY и перезапусти бота.",
+                )
+            return
 
         query_text = ai_query or ""
 
@@ -215,21 +225,15 @@ async def message_handler(message: Message) -> None:
         prompt = get_context_prefix(message.peer_id, query_text) + query_text
 
         logger.info(
-
-            "AI request: %r from=%s owner=%s (images=%d transcripts=%d followup=%s)",
-
+            "AI request: %r from=%s owner=%s ai=%s key_len=%d (images=%d transcripts=%d followup=%s)",
             query_text,
-
             sender_id,
-
             is_owner,
-
+            config.ai_enabled,
+            len(config.ai_api_key),
             len(media.image_data_urls) if media else 0,
-
             len(media.audio_transcripts) if media else 0,
-
             bool(get_context_prefix(message.peer_id, query_text)),
-
         )
 
         ai_reply = await generate_reply(prompt, media)
@@ -252,10 +256,13 @@ async def message_handler(message: Message) -> None:
 
 
 
-        if config.ai_enabled:
-
-            logger.warning("AI reply failed")
-
+        logger.warning("AI reply failed (enabled=%s)", config.ai_enabled)
+        if is_owner and not config.ai_enabled:
+            await relay(
+                message,
+                "ИИ выключен: добавь AI_API_KEY на Bothost и перезапусти бота.",
+            )
+        else:
             await relay(message, AI_ERROR)
 
     except Exception:
