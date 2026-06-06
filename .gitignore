@@ -1,0 +1,17 @@
+.env
+.venv/
+venv/
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.idea/
+.vscode/
+*.db
+data/access.json
+data/features.json
+data/voices.json
+data/known_chats.json
+image.png
+ofont.ru_*.ttf
