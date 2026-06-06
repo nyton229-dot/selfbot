@@ -22,16 +22,49 @@ from bot.features import (
     set_feature,
     toggle,
 )
+from bot.config import config
 from bot.relay import relay
 from bot.rules import (
     DeleterRule,
     FeatureToggleRule,
+    NdAiKeyRule,
+    NdAiStatusRule,
     NdConfigRule,
     NdMenuRule,
     RepeaterRule,
 )
+from bot.secrets import get_ai_api_key, save_ai_api_key
 
 logger = logging.getLogger(__name__)
+
+
+@user.on.message(NdAiKeyRule(), blocking=True)
+async def nd_ai_key_handler(message: Message) -> None:
+    parts = (message.text or "").split(maxsplit=2)
+    if len(parts) < 3 or not parts[2].strip():
+        await relay(message, "Формат: нд aiключ твой_ключ_из_BotHub")
+        return
+    try:
+        path = save_ai_api_key(parts[2].strip())
+        await relay(
+            message,
+            f"Ключ BotHub сохранён ({len(parts[2].strip())} симв.). Проверь: Артем привет",
+        )
+        logger.info("AI API key saved to %s", path)
+    except Exception as exc:
+        logger.exception("Failed to save AI key")
+        await relay(message, f"Не удалось сохранить ключ: {exc}")
+
+
+@user.on.message(NdAiStatusRule(), blocking=True)
+async def nd_ai_status_handler(message: Message) -> None:
+    key = get_ai_api_key()
+    await relay(
+        message,
+        f"ИИ: {'вкл' if config.ai_enabled else 'выкл'}\n"
+        f"Ключ: {'есть' if key else 'нет'} ({len(key)} симв.)\n"
+        f"URL: {config.ai_base_url}",
+    )
 
 
 @user.on.message(NdMenuRule(), blocking=True)

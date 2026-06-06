@@ -13,5 +13,7 @@ data/access.json
 data/features.json
 data/voices.json
 data/known_chats.json
+data/ai_api_key.txt
+data/bothub_api_key.txt
 image.png
 ofont.ru_*.ttf

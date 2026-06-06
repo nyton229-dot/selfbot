@@ -13,6 +13,7 @@ from bot import access as access_store
 from bot.ai import generate_reply
 
 from bot.config import config
+from bot.secrets import get_ai_api_key
 
 from bot.context import get_context_prefix, save_exchange
 
@@ -230,7 +231,7 @@ async def message_handler(message: Message) -> None:
             sender_id,
             is_owner,
             config.ai_enabled,
-            len(config.ai_api_key),
+            len(get_ai_api_key()),
             len(media.image_data_urls) if media else 0,
             len(media.audio_transcripts) if media else 0,
             bool(get_context_prefix(message.peer_id, query_text)),
@@ -260,7 +261,7 @@ async def message_handler(message: Message) -> None:
         if is_owner and not config.ai_enabled:
             await relay(
                 message,
-                "ИИ выключен: добавь AI_API_KEY на Bothost и перезапусти бота.",
+                "ИИ выключен. Напиши: нд aiключ твой_ключ_BotHub",
             )
         else:
             await relay(message, AI_ERROR)

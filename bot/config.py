@@ -28,30 +28,7 @@ def _load_dotenv() -> None:
             load_dotenv(path, override=False)
 
 
-def _read_secret_file(*names: str) -> str:
-    data_dir = os.environ.get("DATA_DIR", "").strip()
-    dirs = [Path(__file__).resolve().parent.parent / "data"]
-    if data_dir:
-        dirs.insert(0, Path(data_dir))
-
-    for directory in dirs:
-        for name in names:
-            path = directory / name
-            if path.is_file():
-                value = path.read_text(encoding="utf-8").strip()
-                if value:
-                    return value
-    return ""
-
-
-def _get_env_or_file(*names: str, file_names: tuple[str, ...] = ()) -> str:
-    for name in names:
-        value = os.environ.get(name, "").strip()
-        if value:
-            return value
-    if file_names:
-        return _read_secret_file(*file_names)
-    return ""
+from bot.secrets import get_ai_api_key
 
 
 @dataclass(frozen=True)
@@ -73,7 +50,7 @@ class Config:
 
     @property
     def ai_enabled(self) -> bool:
-        return bool(self.ai_api_key and self.ai_base_url)
+        return bool(get_ai_api_key() and self.ai_base_url)
 
 
 def _env_bool(name: str, default: bool) -> bool:
@@ -109,11 +86,7 @@ def load_config() -> Config:
         vk_token=token,
         vk_user_id=vk_user_id,
         port=int(os.environ.get("PORT", "8080")),
-        ai_api_key=_get_env_or_file(
-            "AI_API_KEY",
-            "BOTHUB_API_KEY",
-            file_names=("ai_api_key.txt", "bothub_api_key.txt"),
-        ),
+        ai_api_key=get_ai_api_key(),
         ai_base_url=os.environ.get(
             "AI_BASE_URL", "https://bothub.chat/api/v2/openai/v1"
         ).strip(),

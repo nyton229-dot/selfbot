@@ -70,7 +70,19 @@ class NdMenuRule(ABCRule[Message]):
         return text in {"нд", "нд помощь"}
 
 
+class NdAiKeyRule(ABCRule[Message]):
+    async def check(self, event: Message) -> bool:
+        if not await OwnerOutgoingRule().check(event):
+            return False
+        text = (event.text or "").strip().lower()
+        return text.startswith("нд aiключ ") or text.startswith("нд aиключ ")
 
+
+class NdAiStatusRule(ABCRule[Message]):
+    async def check(self, event: Message) -> bool:
+        if not await OwnerOutgoingRule().check(event):
+            return False
+        return (event.text or "").strip().lower() in {"нд aистатус", "нд aistatus"}
 
 
 class InfoCommandRule(ABCRule[Message]):

@@ -8,6 +8,7 @@ import bot.feature_handlers  # noqa: F401 — register nd/toggles
 import bot.handlers  # noqa: F401 — register handlers
 from bot import get_self_id, user
 from bot.config import config
+from bot.secrets import get_ai_api_key
 from bot.feature_tasks import cover_background_loop, feature_background_loop
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
@@ -50,7 +51,7 @@ async def _startup() -> None:
         "VK user bot ready, user_id=%s, ai=%s, ai_key_len=%d, ssl_verify=%s, allow_self=%s",
         self_id,
         config.ai_enabled,
-        len(config.ai_api_key),
+        len(get_ai_api_key()),
         config.ssl_verify,
         config.allow_self_messages,
     )
@@ -58,7 +59,7 @@ async def _startup() -> None:
     logger.info("Меню функций: «нд» / «нд помощь»")
     if not config.ai_enabled:
         logger.warning(
-            "ИИ выключен: на Bothost добавь AI_API_KEY в переменные окружения и перезапусти бота"
+            "ИИ выключен: напиши «нд aiключ твой_ключ_BotHub»"
         )
 
 

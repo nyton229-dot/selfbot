@@ -4,6 +4,7 @@ import httpx
 
 from bot.config import config
 from bot.media import MediaBundle
+from bot.secrets import get_ai_api_key
 
 logger = logging.getLogger(__name__)
 
@@ -75,7 +76,7 @@ async def generate_reply(
 
     url = f"{config.ai_base_url.rstrip('/')}/chat/completions"
     headers = {
-        "Authorization": f"Bearer {config.ai_api_key}",
+        "Authorization": f"Bearer {get_ai_api_key()}",
         "Content-Type": "application/json",
     }
     payload = {
