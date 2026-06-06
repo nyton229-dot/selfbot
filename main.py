@@ -26,6 +26,24 @@ async def _validate_token() -> None:
         raise SystemExit(1) from exc
 
 
+async def _health_server() -> None:
+    """Bothost проверяет PORT — без HTTP-ответа контейнер могут остановить."""
+    from aiohttp import web
+
+    async def ok(_request: web.Request) -> web.Response:
+        return web.Response(text="ok")
+
+    app = web.Application()
+    app.router.add_get("/", ok)
+    app.router.add_get("/health", ok)
+
+    runner = web.AppRunner(app)
+    await runner.setup()
+    site = web.TCPSite(runner, "0.0.0.0", config.port)
+    await site.start()
+    logger.info("Health server on port %s", config.port)
+
+
 async def _startup() -> None:
     self_id = await get_self_id()
     logger.info(
@@ -44,6 +62,7 @@ def _run() -> None:
 
     if hasattr(user, "startup_tasks"):
         user.on_startup.append(_validate_token())
+        user.on_startup.append(_health_server())
         user.on_startup.append(_startup())
         user.startup_tasks.append(feature_background_loop())
         user.startup_tasks.append(cover_background_loop())
@@ -51,6 +70,7 @@ def _run() -> None:
         return
 
     user.loop_wrapper.on_startup.append(_validate_token())
+    user.loop_wrapper.on_startup.append(_health_server())
     user.loop_wrapper.on_startup.append(_startup())
     user.loop_wrapper.add_task(feature_background_loop())
     user.loop_wrapper.add_task(cover_background_loop())
