@@ -2,15 +2,58 @@ import logging
 
 from vkbottle.user import Message
 
-from bot import user
+from bot import get_self_id, user
 from bot.prefix_cmds import parse_prefixed_args
 from bot.relay import relay
-from bot.rules import InfoCommandRule, TrapCatchRule, TrapCommandRule
+from bot.quote_card import fetch_author_avatar, generate_quote_card
+from bot.replies import resolve_reply_message
+from bot.rules import InfoCommandRule, QuoteCommandRule, TrapCatchRule, TrapCommandRule
+from bot.vk_photo import upload_message_photo
+from bot.vk_users import get_display_name
 from bot.trap import disarm_trap, finish_trap, start_trap
 from bot.user_info import fetch_friend_status, fetch_user_info, format_user_info
 from bot.user_target import resolve_user_id
 
 logger = logging.getLogger(__name__)
+
+
+@user.on.message(QuoteCommandRule(), blocking=True)
+async def quote_command_handler(message: Message) -> None:
+    if parse_prefixed_args(message.text or "", "цит") is None:
+        return
+
+    reply = await resolve_reply_message(message)
+    if not reply:
+        await relay(message, "Ответь (reply) на сообщение, из которого нужно сделать цитату.")
+        return
+
+    quote_text = (reply.text or "").strip()
+    if not quote_text:
+        await relay(message, "В сообщении нет текста для цитаты.")
+        return
+
+    author_id = getattr(reply, "from_id", None)
+    if not author_id:
+        await relay(message, "Не удалось определить автора сообщения.")
+        return
+
+    try:
+        author_name = await get_display_name(author_id)
+        avatar_bytes = await fetch_author_avatar(author_id)
+        self_id = await get_self_id()
+        image_bytes = generate_quote_card(
+            author_name=author_name,
+            quote_text=quote_text,
+            message_date=int(getattr(reply, "date", 0) or 0),
+            avatar_bytes=avatar_bytes,
+            footer_avatar_bytes=await fetch_author_avatar(self_id),
+        )
+        attachment = await upload_message_photo(message.peer_id, image_bytes, "quote.jpg")
+        await relay(message, attachment=attachment)
+        logger.info("Quote card sent for author=%s peer=%s", author_id, message.peer_id)
+    except Exception:
+        logger.exception("Quote command failed")
+        await relay(message, "Не удалось сделать цитату.")
 
 
 @user.on.message(InfoCommandRule(), blocking=True)

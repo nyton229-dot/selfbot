@@ -92,6 +92,13 @@ class InfoCommandRule(ABCRule[Message]):
         return parse_prefixed_args(event.text or "", "инфо") is not None
 
 
+class QuoteCommandRule(ABCRule[Message]):
+    async def check(self, event: Message) -> bool:
+        if not await OwnerOutgoingRule().check(event):
+            return False
+        return parse_prefixed_args(event.text or "", "цит") is not None
+
+
 class VoiceCommandRule(ABCRule[Message]):
     async def check(self, event: Message) -> bool:
         if not await OwnerOutgoingRule().check(event):

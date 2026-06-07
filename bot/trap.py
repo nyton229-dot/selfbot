@@ -3,12 +3,9 @@ import random
 import time
 from pathlib import Path
 
-import httpx
-
 from bot import user
-from bot.config import config
 from bot.features import get_state, set_trap_assets_version, set_trap_photo
-from bot.vk_photo import prepare_trap_panel
+from bot.vk_photo import prepare_trap_panel, upload_message_photo
 from bot.vk_rate import throttle
 
 logger = logging.getLogger(__name__)
@@ -92,34 +89,6 @@ def match_prefixed_command(text: str, command: str) -> bool:
     return normalized in {f"{prefix} {command}", f"{prefix}{command}"}
 
 
-async def _upload_message_photo(peer_id: int, image_bytes: bytes, filename: str) -> str:
-    await throttle()
-    upload_server = await user.api.photos.get_messages_upload_server(peer_id=peer_id)
-
-    async with httpx.AsyncClient(verify=config.ssl_verify, timeout=60.0) as client:
-        response = await client.post(
-            upload_server.upload_url,
-            files={"photo": (filename, image_bytes, "image/jpeg")},
-        )
-        response.raise_for_status()
-        data = response.json()
-
-    if not data.get("photo") or not data.get("server") or not data.get("hash"):
-        raise RuntimeError(f"VK photo upload failed: {data}")
-
-    await throttle()
-    saved = await user.api.photos.save_messages_photo(
-        photo=data["photo"],
-        server=data["server"],
-        hash=data["hash"],
-    )
-    photo = saved[0]
-    attachment = f"photo{photo.owner_id}_{photo.id}"
-    if photo.access_key:
-        attachment += f"_{photo.access_key}"
-    return attachment
-
-
 async def get_trap_photo(peer_id: int, which: str) -> str:
     state = get_state()
     cached = getattr(state, f"trap_photo_{which}", "")
@@ -131,7 +100,7 @@ async def get_trap_photo(peer_id: int, which: str) -> str:
         raise FileNotFoundError(f"Trap image missing: {path}")
 
     image_bytes = prepare_trap_panel(path, panel=which)
-    attachment = await _upload_message_photo(
+    attachment = await upload_message_photo(
         peer_id,
         image_bytes,
         filename=f"trap_{which}.jpg",

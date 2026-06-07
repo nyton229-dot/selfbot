@@ -2,7 +2,12 @@ import io
 import logging
 from pathlib import Path
 
+import httpx
 from PIL import Image
+
+from bot import user
+from bot.config import config
+from bot.vk_rate import throttle
 
 logger = logging.getLogger(__name__)
 
@@ -53,3 +58,33 @@ def prepare_trap_panel(source: Path, *, panel: str) -> bytes:
         len(data),
     )
     return data
+
+
+async def upload_message_photo(
+    peer_id: int, image_bytes: bytes, filename: str = "image.jpg"
+) -> str:
+    await throttle()
+    upload_server = await user.api.photos.get_messages_upload_server(peer_id=peer_id)
+
+    async with httpx.AsyncClient(verify=config.ssl_verify, timeout=60.0) as client:
+        response = await client.post(
+            upload_server.upload_url,
+            files={"photo": (filename, image_bytes, "image/jpeg")},
+        )
+        response.raise_for_status()
+        data = response.json()
+
+    if not data.get("photo") or not data.get("server") or not data.get("hash"):
+        raise RuntimeError(f"VK photo upload failed: {data}")
+
+    await throttle()
+    saved = await user.api.photos.save_messages_photo(
+        photo=data["photo"],
+        server=data["server"],
+        hash=data["hash"],
+    )
+    photo = saved[0]
+    attachment = f"photo{photo.owner_id}_{photo.id}"
+    if photo.access_key:
+        attachment += f"_{photo.access_key}"
+    return attachment
