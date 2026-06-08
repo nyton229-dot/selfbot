@@ -14,16 +14,19 @@ from bot.vk_http import build_vk_api
 
 _self_id_cache: dict[int, int] = {}
 
-users: list[User] = []
+apis: list[API] = []
 for account in config.accounts:
-    vk_user = User(api=build_vk_api(account.token, config.ssl_verify))
-    register_api_account(vk_user.api, account)
-    vk_user.labeler.message_view.register_middleware(LogMiddleware)
-    vk_user.labeler.message_view.register_middleware(ApiContextMiddleware)
-    users.append(vk_user)
+    api = build_vk_api(account.token, config.ssl_verify)
+    register_api_account(api, account)
+    apis.append(api)
 
-user = users[0]
-set_default_api(users[0].api)
+user = User(api=apis[0])
+user.labeler.message_view.register_middleware(LogMiddleware)
+user.labeler.message_view.register_middleware(ApiContextMiddleware)
+set_default_api(apis[0])
+
+# Обратная совместимость (фоновые задачи идут по apis)
+users = [user]
 
 
 async def resolve_self_id(api: API) -> int:
@@ -44,19 +47,6 @@ async def get_self_id() -> int:
     return await resolve_self_id(get_api())
 
 
-def mirror_accounts() -> None:
-    """Копирует обработчики первого аккаунта на остальные."""
-    if len(users) <= 1:
-        return
-
-    primary = users[0]
-    for extra in users[1:]:
-        extra.loop_wrapper = primary.loop_wrapper
-        extra.labeler.load(primary.labeler)
-        extra.labeler.message_view.register_middleware(LogMiddleware)
-        extra.labeler.message_view.register_middleware(ApiContextMiddleware)
-
-
 def account_label(account: VkAccount) -> str:
     return str(account.user_id or "auto")
 
@@ -64,9 +54,9 @@ def account_label(account: VkAccount) -> str:
 __all__ = [
     "account_for_api",
     "account_label",
+    "apis",
     "get_api",
     "get_self_id",
-    "mirror_accounts",
     "resolve_self_id",
     "set_current_api",
     "user",

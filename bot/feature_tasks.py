@@ -3,7 +3,7 @@ import logging
 
 from vkbottle_types.objects import UsersFields
 
-from bot import get_api, set_current_api, users
+from bot import apis, get_api, set_current_api
 from bot.cover_updater import msk_now, sleep_until_next_msk_minute, update_profile_cover
 from bot.feature_events import _self_removed_friends
 from bot.features import get_friend_ids, get_state, set_friend_ids
@@ -12,6 +12,7 @@ logger = logging.getLogger(__name__)
 
 _online_unavailable = False
 _offline_unavailable = False
+_friends_add_unavailable = False
 
 
 async def run_feature_maintenance() -> None:
@@ -33,8 +34,8 @@ async def run_feature_maintenance() -> None:
 
 
 async def run_feature_maintenance_all() -> None:
-    for vk_user in users:
-        set_current_api(vk_user.api)
+    for api in apis:
+        set_current_api(api)
         try:
             await run_feature_maintenance()
         finally:
@@ -76,6 +77,9 @@ async def _set_offline() -> None:
 
 
 async def _process_friend_requests() -> None:
+    global _friends_add_unavailable
+    if _friends_add_unavailable:
+        return
     try:
         requests = await get_api().friends.get_requests()
     except Exception:
@@ -86,7 +90,14 @@ async def _process_friend_requests() -> None:
         try:
             await get_api().friends.add(user_id=user_id)
             logger.info("Auto-added friend %s", user_id)
-        except Exception:
+        except Exception as exc:
+            code = getattr(exc, "error_code", None) or getattr(exc, "code", None)
+            if code == 3:
+                _friends_add_unavailable = True
+                logger.warning(
+                    "friends.add недоступен для этого токена — автодобавление отключено"
+                )
+                return
             logger.warning("friends.add failed for %s", user_id)
 
 
@@ -149,8 +160,8 @@ async def cover_background_loop() -> None:
         current_minute = msk_now().strftime("%H:%M")
         if current_minute != last_posted_minute:
             try:
-                for vk_user in users:
-                    set_current_api(vk_user.api)
+                for api in apis:
+                    set_current_api(api)
                     try:
                         await update_profile_cover()
                     finally:
