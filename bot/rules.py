@@ -6,14 +6,10 @@ from vkbottle.user import Message
 
 from bot import get_self_id
 
-from bot.config import config
-
 from bot.features import get_state, is_feature_command, is_nd_config_command, parse_deleter_command
 from bot.trap import match_prefixed_command, should_catch_trap_message
 from bot.prefix_cmds import parse_prefixed_args
 from bot.voices import parse_voice_command
-
-from bot.helpers import extract_ai_query, has_ai_command, is_dov_admin_command
 
 
 
@@ -37,26 +33,6 @@ class OwnerOutgoingRule(ABCRule[Message]):
 
 
 
-class DovAdminRule(ABCRule[Message]):
-
-    """Команды /+дов и /-дов — только владелец."""
-
-
-
-    async def check(self, event: Message) -> bool:
-
-        text = (event.text or "").strip()
-
-        if not text or not is_dov_admin_command(text):
-
-            return False
-
-        return await OwnerOutgoingRule().check(event)
-
-
-
-
-
 class NdMenuRule(ABCRule[Message]):
 
     async def check(self, event: Message) -> bool:
@@ -68,21 +44,6 @@ class NdMenuRule(ABCRule[Message]):
         text = (event.text or "").strip().lower()
 
         return text in {"нд", "нд помощь"}
-
-
-class NdAiKeyRule(ABCRule[Message]):
-    async def check(self, event: Message) -> bool:
-        if not await OwnerOutgoingRule().check(event):
-            return False
-        text = (event.text or "").strip().lower()
-        return text.startswith("нд aiключ ") or text.startswith("нд aиключ ")
-
-
-class NdAiStatusRule(ABCRule[Message]):
-    async def check(self, event: Message) -> bool:
-        if not await OwnerOutgoingRule().check(event):
-            return False
-        return (event.text or "").strip().lower() in {"нд aистатус", "нд aistatus"}
 
 
 class InfoCommandRule(ABCRule[Message]):
@@ -179,52 +140,5 @@ class IncomingAnyRule(ABCRule[Message]):
 
 
 
-
-
-class IncomingMessageRule(ABCRule[Message]):
-
-    """Артем: владелец всегда; остальные — только с выданным доступом (проверка в handler)."""
-
-
-
-    async def check(self, event: Message) -> bool:
-
-        from bot.media import has_recognizable_media
-
-
-
-        text = (event.text or "").strip()
-
-        if not text or not has_ai_command(text, config.ai_prefix):
-
-            return False
-
-
-
-        query = extract_ai_query(text, config.ai_prefix)
-
-        if query is None:
-
-            return False
-
-        if not query and not has_recognizable_media(event):
-
-            return False
-
-
-
-        self_id = await get_self_id()
-
-        out = int(getattr(event, "out", 0) or 0)
-
-
-
-        if out == 1 and event.from_id == self_id:
-
-            return config.allow_self_messages
-
-
-
-        return out == 0
 
 

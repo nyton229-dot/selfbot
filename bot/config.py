@@ -28,13 +28,15 @@ def _load_dotenv() -> None:
             load_dotenv(path, override=False)
 
 
-from bot.secrets import get_ai_api_key
+@dataclass(frozen=True)
+class VkAccount:
+    token: str
+    user_id: int
 
 
 @dataclass(frozen=True)
 class Config:
-    vk_token: str
-    vk_user_id: int
+    accounts: tuple[VkAccount, ...]
     port: int
     ai_api_key: str
     ai_base_url: str
@@ -49,7 +51,17 @@ class Config:
     allow_self_messages: bool
 
     @property
+    def vk_token(self) -> str:
+        return self.accounts[0].token
+
+    @property
+    def vk_user_id(self) -> int:
+        return self.accounts[0].user_id
+
+    @property
     def ai_enabled(self) -> bool:
+        from bot.secrets import get_ai_api_key
+
         return bool(get_ai_api_key() and self.ai_base_url)
 
 
@@ -60,15 +72,25 @@ def _env_bool(name: str, default: bool) -> bool:
     return raw not in {"0", "false", "no", "off"}
 
 
-def load_config() -> Config:
-    _load_dotenv()
+def _read_token(*names: str) -> str:
+    for name in names:
+        value = os.environ.get(name, "").strip()
+        if value:
+            return value
+    return ""
 
-    token = (
-        os.environ.get("VK_TOKEN", "").strip()
-        or os.environ.get("BOT_TOKEN", "").strip()
-        or os.environ.get("VK_BOT_TOKEN", "").strip()
-    )
-    if not token:
+
+def _read_user_id(name: str) -> int:
+    raw = os.environ.get(name, "0").strip()
+    try:
+        return int(raw)
+    except ValueError as exc:
+        raise RuntimeError(f"{name} must be an integer") from exc
+
+
+def _load_accounts() -> tuple[VkAccount, ...]:
+    primary_token = _read_token("VK_TOKEN", "BOT_TOKEN", "VK_BOT_TOKEN")
+    if not primary_token:
         env_path = Path(__file__).resolve().parent.parent / ".env"
         raise RuntimeError(
             "VK_TOKEN не задан. Локально — в .env, на Bothost — в переменных окружения:\n"
@@ -76,15 +98,26 @@ def load_config() -> Config:
             "  VK_TOKEN=vk1.a.... (user access token из oauth.vk.com)"
         )
 
-    user_id_raw = os.environ.get("VK_USER_ID", "0").strip()
-    try:
-        vk_user_id = int(user_id_raw)
-    except ValueError as exc:
-        raise RuntimeError("VK_USER_ID must be an integer") from exc
+    accounts = [
+        VkAccount(token=primary_token, user_id=_read_user_id("VK_USER_ID")),
+    ]
+
+    second_token = os.environ.get("VK_TOKEN_2", "").strip()
+    if second_token:
+        accounts.append(
+            VkAccount(token=second_token, user_id=_read_user_id("VK_USER_ID_2")),
+        )
+
+    return tuple(accounts)
+
+
+def load_config() -> Config:
+    _load_dotenv()
+
+    from bot.secrets import get_ai_api_key
 
     return Config(
-        vk_token=token,
-        vk_user_id=vk_user_id,
+        accounts=_load_accounts(),
         port=int(os.environ.get("PORT", "8080")),
         ai_api_key=get_ai_api_key(),
         ai_base_url=os.environ.get(

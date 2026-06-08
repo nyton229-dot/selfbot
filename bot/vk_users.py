@@ -1,6 +1,6 @@
 import logging
 
-from bot import user
+from bot import get_api
 
 logger = logging.getLogger(__name__)
 
@@ -12,7 +12,7 @@ async def get_display_name(user_id: int) -> str:
         return _name_cache[user_id]
 
     try:
-        result = await user.api.users.get(user_ids=[user_id])
+        result = await get_api().users.get(user_ids=[user_id])
         if result:
             profile = result[0]
             name = f"{profile.first_name} {profile.last_name}".strip()

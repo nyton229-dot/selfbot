@@ -3,7 +3,7 @@ import re
 
 from vkbottle.user import Message
 
-from bot import user
+from bot import get_api
 from bot.replies import resolve_reply_from_id
 
 logger = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ async def _resolve_from_text(text: str) -> int | None:
         return None
 
     try:
-        result = await user.api.users.get(user_ids=[domain])
+        result = await get_api().users.get(user_ids=[domain])
         if result:
             return result[0].id
     except Exception:

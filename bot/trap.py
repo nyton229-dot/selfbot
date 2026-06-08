@@ -3,7 +3,7 @@ import random
 import time
 from pathlib import Path
 
-from bot import user
+from bot import get_api
 from bot.features import get_state, set_trap_assets_version, set_trap_photo
 from bot.vk_photo import prepare_trap_panel, upload_message_photo
 from bot.vk_rate import throttle
@@ -115,7 +115,7 @@ async def get_trap_photo(peer_id: int, which: str) -> str:
 
 async def _send(peer_id: int, *, message: str = "", attachment: str | None = None) -> None:
     await throttle()
-    await user.api.messages.send(
+    await get_api().messages.send(
         peer_id=peer_id,
         message=message,
         attachment=attachment,

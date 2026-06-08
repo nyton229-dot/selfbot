@@ -5,26 +5,25 @@ import bot.fun_handlers  # noqa: F401 — trap (register early)
 import bot.voice_handlers  # noqa: F401 — saved voice messages
 import bot.feature_events  # noqa: F401 — register feature events
 import bot.feature_handlers  # noqa: F401 — register nd/toggles
-import bot.handlers  # noqa: F401 — register handlers
-from bot import get_self_id, user
+from bot import account_label, mirror_accounts, users
 from bot.config import config
-from bot.secrets import get_ai_api_key
 from bot.feature_tasks import cover_background_loop, feature_background_loop
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
 
-async def _validate_token() -> None:
-    try:
-        await user.api.users.get()
-    except Exception as exc:
-        logger.critical(
-            "Токен VK не работает (%s). На Bothost нужен USER token (vk1.a...), "
-            "не токен группы/сообщества. Проверь VK_TOKEN в переменных окружения.",
-            exc,
-        )
-        raise SystemExit(1) from exc
+async def _validate_tokens() -> None:
+    for account, vk_user in zip(config.accounts, users, strict=True):
+        try:
+            await vk_user.api.users.get()
+        except Exception as exc:
+            logger.critical(
+                "Токен VK не работает для аккаунта %s (%s). Нужен USER token (vk1.a...).",
+                account_label(account),
+                exc,
+            )
+            raise SystemExit(1) from exc
 
 
 async def _health_server() -> None:
@@ -46,41 +45,46 @@ async def _health_server() -> None:
 
 
 async def _startup() -> None:
-    self_id = await get_self_id()
+    ids = [account_label(account) for account in config.accounts]
     logger.info(
-        "VK user bot ready, user_id=%s, ai=%s, ai_key_len=%d, ssl_verify=%s, allow_self=%s",
-        self_id,
-        config.ai_enabled,
-        len(get_ai_api_key()),
+        "VK user bot ready, accounts=%s, ssl_verify=%s, allow_self=%s",
+        ", ".join(ids),
         config.ssl_verify,
         config.allow_self_messages,
     )
-    logger.info("Команда для ответа: «%s твой вопрос» (только ты + выданный /+дов)", config.ai_prefix)
     logger.info("Меню функций: «нд» / «нд помощь»")
-    if not config.ai_enabled:
-        logger.warning(
-            "ИИ выключен: напиши «нд aiключ твой_ключ_BotHub»"
-        )
+
+
+async def _start_extra_accounts() -> None:
+    import asyncio
+
+    if len(users) <= 1:
+        return
+    await asyncio.gather(*[vk_user.run_polling() for vk_user in users[1:]])
 
 
 def _run() -> None:
-    logger.info("Starting long poll...")
+    mirror_accounts()
+    logger.info("Starting long poll for %s account(s)...", len(users))
+    primary = users[0]
 
-    if hasattr(user, "startup_tasks"):
-        user.on_startup.append(_validate_token())
-        user.on_startup.append(_health_server())
-        user.on_startup.append(_startup())
-        user.startup_tasks.append(feature_background_loop())
-        user.startup_tasks.append(cover_background_loop())
-        user.run()
+    if hasattr(primary, "startup_tasks"):
+        primary.on_startup.append(_validate_tokens())
+        primary.on_startup.append(_health_server())
+        primary.on_startup.append(_startup())
+        primary.startup_tasks.append(feature_background_loop())
+        primary.startup_tasks.append(cover_background_loop())
+        primary.startup_tasks.append(_start_extra_accounts())
+        primary.run()
         return
 
-    user.loop_wrapper.on_startup.append(_validate_token())
-    user.loop_wrapper.on_startup.append(_health_server())
-    user.loop_wrapper.on_startup.append(_startup())
-    user.loop_wrapper.add_task(feature_background_loop())
-    user.loop_wrapper.add_task(cover_background_loop())
-    user.run_forever()
+    primary.loop_wrapper.on_startup.append(_validate_tokens())
+    primary.loop_wrapper.on_startup.append(_health_server())
+    primary.loop_wrapper.on_startup.append(_startup())
+    primary.loop_wrapper.add_task(feature_background_loop())
+    primary.loop_wrapper.add_task(cover_background_loop())
+    primary.loop_wrapper.add_task(_start_extra_accounts())
+    primary.run_forever()
 
 
 if __name__ == "__main__":

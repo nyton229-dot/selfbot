@@ -4,8 +4,6 @@ import re
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
 
-from bot.config import config
-
 logger = logging.getLogger(__name__)
 
 FEATURES_FILE = Path(__file__).resolve().parent.parent / "data" / "features.json"
@@ -300,7 +298,6 @@ def build_menu() -> str:
         f"{s.icon(s.dynamic_cover)} Динамическая обложка профиля",
         "",
         f"Префикс команд: {ON} {s.command_prefix}",
-        f"Префикс ИИ: {ON} {config.ai_prefix}",
         "",
         "Список команд — «нд помощь»",
     ]
@@ -339,5 +336,4 @@ def build_help() -> str:
 л гс <имя> — отправить сохранённое ГС.
 нд префикс <буква> — сменить префикс команд (по умолчанию «л»).
 
-Только владелец (исходящие сообщения).
-/+дов /-дов — доступ к ИИ (ответом на сообщение)."""
+Только владелец (исходящие сообщения)."""

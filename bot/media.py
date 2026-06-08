@@ -154,10 +154,10 @@ async def _resolve_photo_url(photo: PhotosPhoto) -> str | None:
     if url:
         return url
 
-    from bot import user
+    from bot import get_api
 
     try:
-        items = await user.api.photos.get_by_id(
+        items = await get_api().photos.get_by_id(
             photos=[_photo_api_id(photo)],
             photo_sizes=True,
         )
@@ -182,10 +182,10 @@ def _video_api_id(video: VideoVideoFull) -> str:
 
 
 async def _resolve_video(video: VideoVideoFull) -> VideoVideoFull:
-    from bot import user
+    from bot import get_api
 
     try:
-        result = await user.api.video.get(videos=[_video_api_id(video)])
+        result = await get_api().video.get(videos=[_video_api_id(video)])
     except Exception as exc:
         logger.warning("video.get failed for %s: %s", _video_api_id(video), exc)
         return video

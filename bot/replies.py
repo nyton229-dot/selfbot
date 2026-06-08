@@ -3,7 +3,7 @@ import logging
 
 from vkbottle.user import Message
 
-from bot import get_self_id, user
+from bot import get_api, get_self_id
 
 logger = logging.getLogger(__name__)
 
@@ -15,12 +15,12 @@ async def _fetch_reply_message_from_api(message: Message):
 
     try:
         if message.id:
-            result = await user.api.messages.get_by_id(
+            result = await get_api().messages.get_by_id(
                 peer_id=peer_id,
                 message_ids=[message.id],
             )
         elif message.conversation_message_id:
-            result = await user.api.messages.get_by_id(
+            result = await get_api().messages.get_by_id(
                 peer_id=peer_id,
                 cmids=[message.conversation_message_id],
             )

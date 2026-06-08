@@ -5,7 +5,7 @@ from pathlib import Path
 import httpx
 from PIL import Image
 
-from bot import user
+from bot import get_api
 from bot.config import config
 from bot.vk_rate import throttle
 
@@ -64,7 +64,7 @@ async def upload_message_photo(
     peer_id: int, image_bytes: bytes, filename: str = "image.jpg"
 ) -> str:
     await throttle()
-    upload_server = await user.api.photos.get_messages_upload_server(peer_id=peer_id)
+    upload_server = await get_api().photos.get_messages_upload_server(peer_id=peer_id)
 
     async with httpx.AsyncClient(verify=config.ssl_verify, timeout=60.0) as client:
         response = await client.post(
@@ -78,7 +78,7 @@ async def upload_message_photo(
         raise RuntimeError(f"VK photo upload failed: {data}")
 
     await throttle()
-    saved = await user.api.photos.save_messages_photo(
+    saved = await get_api().photos.save_messages_photo(
         photo=data["photo"],
         server=data["server"],
         hash=data["hash"],

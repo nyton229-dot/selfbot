@@ -5,7 +5,7 @@ from vkbottle.user import Message
 from bot import get_self_id, user
 from bot.prefix_cmds import parse_prefixed_args
 from bot.relay import relay
-from bot.quote_card import fetch_author_avatar, generate_quote_card
+from bot.quote_card import fetch_author_avatar, generate_quote_card, message_date_to_timestamp
 from bot.replies import resolve_reply_message
 from bot.rules import InfoCommandRule, QuoteCommandRule, TrapCatchRule, TrapCommandRule
 from bot.vk_photo import upload_message_photo
@@ -40,11 +40,13 @@ async def quote_command_handler(message: Message) -> None:
     try:
         author_name = await get_display_name(author_id)
         avatar_bytes = await fetch_author_avatar(author_id)
+        if not avatar_bytes:
+            logger.warning("Quote card: avatar missing for author_id=%s", author_id)
         self_id = await get_self_id()
         image_bytes = generate_quote_card(
             author_name=author_name,
             quote_text=quote_text,
-            message_date=int(getattr(reply, "date", 0) or 0),
+            message_date=message_date_to_timestamp(getattr(reply, "date", 0)),
             avatar_bytes=avatar_bytes,
             footer_avatar_bytes=await fetch_author_avatar(self_id),
         )

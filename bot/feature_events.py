@@ -6,7 +6,7 @@ from vkbottle_types.events.user_events import ChatInfoEdit, FriendAction
 from vkbottle_types.events.enums import UserEventType
 from vkbottle_types.events.objects.user_event_objects import ActionType
 
-from bot import get_self_id, user
+from bot import get_api, get_self_id, user
 from bot.features import get_state
 from bot.rules import IncomingAnyRule
 logger = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ async def _leave_chat(peer_id: int) -> None:
     chat_id = peer_id - 2000000000
     self_id = await get_self_id()
     try:
-        await user.api.messages.remove_chat_user(chat_id=chat_id, user_id=self_id)
+        await get_api().messages.remove_chat_user(chat_id=chat_id, user_id=self_id)
         logger.info("Auto-left chat %s", chat_id)
     except Exception:
         logger.exception("Auto-leave failed for chat %s", chat_id)
@@ -87,7 +87,7 @@ async def push_delete_handler(message: Message) -> None:
         return
 
     try:
-        await user.api.messages.delete(
+        await get_api().messages.delete(
             peer_id=message.peer_id,
             cmids=[cmid],
             delete_for_all=False,

@@ -3,7 +3,7 @@ import logging
 
 from vkbottle_types.objects import UsersFields
 
-from bot import user
+from bot import get_api, set_current_api, users
 from bot.cover_updater import msk_now, sleep_until_next_msk_minute, update_profile_cover
 from bot.feature_events import _self_removed_friends
 from bot.features import get_friend_ids, get_state, set_friend_ids
@@ -32,12 +32,21 @@ async def run_feature_maintenance() -> None:
         await _process_auto_unfollow()
 
 
+async def run_feature_maintenance_all() -> None:
+    for vk_user in users:
+        set_current_api(vk_user.api)
+        try:
+            await run_feature_maintenance()
+        finally:
+            set_current_api(None)
+
+
 async def _set_online() -> None:
     global _online_unavailable
     if _online_unavailable:
         return
     try:
-        await user.api.account.set_online()
+        await get_api().account.set_online()
     except Exception as exc:
         code = getattr(exc, "error_code", None) or getattr(exc, "code", None)
         if code == 3:
@@ -54,7 +63,7 @@ async def _set_offline() -> None:
     if _offline_unavailable:
         return
     try:
-        await user.api.account.set_offline()
+        await get_api().account.set_offline()
     except Exception as exc:
         code = getattr(exc, "error_code", None) or getattr(exc, "code", None)
         if code == 3:
@@ -68,14 +77,14 @@ async def _set_offline() -> None:
 
 async def _process_friend_requests() -> None:
     try:
-        requests = await user.api.friends.get_requests()
+        requests = await get_api().friends.get_requests()
     except Exception:
         logger.exception("friends.getRequests failed")
         return
 
     for user_id in requests.items or []:
         try:
-            await user.api.friends.add(user_id=user_id)
+            await get_api().friends.add(user_id=user_id)
             logger.info("Auto-added friend %s", user_id)
         except Exception:
             logger.warning("friends.add failed for %s", user_id)
@@ -83,7 +92,7 @@ async def _process_friend_requests() -> None:
 
 async def _delete_dogs() -> None:
     try:
-        friends = await user.api.friends.get(fields=[UsersFields.DEACTIVATED])
+        friends = await get_api().friends.get(fields=[UsersFields.DEACTIVATED])
     except Exception:
         logger.exception("friends.get failed")
         return
@@ -93,7 +102,7 @@ async def _delete_dogs() -> None:
         if not deactivated:
             continue
         try:
-            await user.api.friends.delete(user_id=profile.id)
+            await get_api().friends.delete(user_id=profile.id)
             logger.info("Removed dog account %s (%s)", profile.id, deactivated)
         except Exception:
             logger.warning("friends.delete failed for %s", profile.id)
@@ -101,7 +110,7 @@ async def _delete_dogs() -> None:
 
 async def _process_auto_unfollow() -> None:
     try:
-        friends = await user.api.friends.get()
+        friends = await get_api().friends.get()
     except Exception:
         logger.exception("friends.get failed")
         return
@@ -119,7 +128,7 @@ async def _process_auto_unfollow() -> None:
             _self_removed_friends.discard(user_id)
             continue
         try:
-            await user.api.friends.delete(user_id=user_id)
+            await get_api().friends.delete(user_id=user_id)
             logger.info("Auto-unfollow %s", user_id)
         except Exception:
             logger.warning("Auto-unfollow failed for %s", user_id)
@@ -140,7 +149,12 @@ async def cover_background_loop() -> None:
         current_minute = msk_now().strftime("%H:%M")
         if current_minute != last_posted_minute:
             try:
-                await update_profile_cover()
+                for vk_user in users:
+                    set_current_api(vk_user.api)
+                    try:
+                        await update_profile_cover()
+                    finally:
+                        set_current_api(None)
                 last_posted_minute = current_minute
             except Exception as exc:
                 code = getattr(exc, "error_code", None) or getattr(exc, "code", None)
@@ -158,7 +172,7 @@ async def cover_background_loop() -> None:
 async def feature_background_loop() -> None:
     while True:
         try:
-            await run_feature_maintenance()
+            await run_feature_maintenance_all()
         except Exception:
             logger.exception("Feature maintenance error")
         await asyncio.sleep(30)

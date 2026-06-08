@@ -13,7 +13,7 @@ from zoneinfo import ZoneInfo
 import httpx
 from PIL import Image, ImageDraw, ImageFont
 
-from bot import get_self_id, user
+from bot import get_api, get_self_id
 from bot.config import config
 from bot.vk_rate import throttle
 
@@ -124,7 +124,7 @@ async def upload_profile_cover(image_bytes: bytes) -> None:
     user_id = await get_self_id()
 
     await throttle()
-    server_payload = await user.api.request(
+    server_payload = await get_api().request(
         "photos.getOwnerCoverPhotoUploadServer",
         {
             "user_id": user_id,
@@ -148,7 +148,7 @@ async def upload_profile_cover(image_bytes: bytes) -> None:
         raise RuntimeError(f"Ошибка загрузки на сервер VK: {data}")
 
     await throttle()
-    await user.api.photos.save_owner_cover_photo(
+    await get_api().photos.save_owner_cover_photo(
         hash=data["hash"],
         photo=data["photo"],
     )

@@ -2,7 +2,7 @@ import logging
 
 from vkbottle_types.objects import UsersFields, UsersUserFull
 
-from bot import user
+from bot import get_api
 
 logger = logging.getLogger(__name__)
 
@@ -76,7 +76,7 @@ FRIEND_STATUS_LABELS = {
 
 async def fetch_user_info(user_id: int) -> UsersUserFull | None:
     try:
-        result = await user.api.users.get(user_ids=[user_id], fields=INFO_FIELDS)
+        result = await get_api().users.get(user_ids=[user_id], fields=INFO_FIELDS)
         return result[0] if result else None
     except Exception:
         logger.exception("users.get info failed for %s", user_id)
@@ -85,7 +85,7 @@ async def fetch_user_info(user_id: int) -> UsersUserFull | None:
 
 async def fetch_friend_status(user_id: int) -> str | None:
     try:
-        result = await user.api.friends.are_friends(user_ids=[user_id])
+        result = await get_api().friends.are_friends(user_ids=[user_id])
         if not result:
             return None
         status = result[0].friend_status
