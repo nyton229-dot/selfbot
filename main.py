@@ -55,12 +55,19 @@ async def _startup() -> None:
     logger.info("Меню функций: «нд» / «нд помощь»")
 
 
-async def _start_extra_accounts() -> None:
+async def _run_all_polls() -> None:
     import asyncio
 
-    if len(users) <= 1:
-        return
-    await asyncio.gather(*[vk_user.run_polling() for vk_user in users[1:]])
+    async def _poll_account(vk_user, account) -> None:
+        logger.info("Long poll started for account %s", account_label(account))
+        await vk_user.run_polling()
+
+    await asyncio.gather(
+        *[
+            _poll_account(vk_user, account)
+            for vk_user, account in zip(users, config.accounts, strict=True)
+        ]
+    )
 
 
 def _run() -> None:
@@ -74,7 +81,7 @@ def _run() -> None:
         primary.on_startup.append(_startup())
         primary.startup_tasks.append(feature_background_loop())
         primary.startup_tasks.append(cover_background_loop())
-        primary.startup_tasks.append(_start_extra_accounts())
+        primary.startup_tasks.append(_run_all_polls())
         primary.run()
         return
 
@@ -83,8 +90,8 @@ def _run() -> None:
     primary.loop_wrapper.on_startup.append(_startup())
     primary.loop_wrapper.add_task(feature_background_loop())
     primary.loop_wrapper.add_task(cover_background_loop())
-    primary.loop_wrapper.add_task(_start_extra_accounts())
-    primary.run_forever()
+    primary.loop_wrapper.add_task(_run_all_polls())
+    primary.loop_wrapper.run()
 
 
 if __name__ == "__main__":

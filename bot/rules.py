@@ -4,7 +4,7 @@ from vkbottle.user import Message
 
 
 
-from bot import get_self_id
+from bot import resolve_self_id
 
 from bot.features import get_state, is_feature_command, is_nd_config_command, parse_deleter_command
 from bot.trap import match_prefixed_command, should_catch_trap_message
@@ -22,11 +22,8 @@ class OwnerOutgoingRule(ABCRule[Message]):
 
 
     async def check(self, event: Message) -> bool:
-
-        self_id = await get_self_id()
-
+        self_id = await resolve_self_id(event.ctx_api)
         out = int(getattr(event, "out", 0) or 0)
-
         return out == 1 and event.from_id == self_id
 
 
@@ -76,7 +73,7 @@ class TrapCommandRule(ABCRule[Message]):
 
 class TrapCatchRule(ABCRule[Message]):
     async def check(self, event: Message) -> bool:
-        self_id = await get_self_id()
+        self_id = await resolve_self_id(event.ctx_api)
         return should_catch_trap_message(
             peer_id=event.peer_id,
             from_id=event.from_id,
